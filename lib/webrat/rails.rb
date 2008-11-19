@@ -42,12 +42,9 @@ module Webrat
 
     def do_request(http_method, url, data, headers) #:nodoc:
       update_protocol(url)
-
-      if Webrat.configuration.follow_redirects
-        @integration_session.request_via_redirect(http_method, remove_protocol(url), data, headers)
-      else
-        @integration_session.send(http_method, remove_protocol(url), data, headers)
-      end
+      @integration_session.send(http_method, remove_protocol(url), data, headers)
+      @integration_session.follow_redirect! while @integration_session.internal_redirect?
+      @integration_session.status
     end
 
     def remove_protocol(href) #:nodoc:
@@ -69,17 +66,14 @@ module Webrat
     def response #:nodoc:
       @integration_session.response
     end
-
   end
 end
 
 module ActionController
   module Integration
     class Session #:nodoc:
-
-      unless instance_methods.include?("put_via_redirect")
-        require "webrat/rails/redirect_actions"
-        include Webrat::RedirectActions
+      def internal_redirect?
+        redirect? && response.redirect_url_match?(host)
       end
 
       def respond_to?(name)
