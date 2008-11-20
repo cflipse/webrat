@@ -47,28 +47,61 @@ describe Webrat::RailsSession do
     rails_session.delete("url", "data", "headers")
   end
 
-  it "should follow internal redirects" do
-    @integration_session.stub!(:get)
-    @integration_session.stub!(:host)
-    @integration_session.stub!(:status)
+  context "following redirects" do
+    before do
+      Webrat.cache_config_for_test
+      Webrat.configuration.follow_redirects = true
+    end
 
-    @integration_session.should_receive(:internal_redirect?).twice.and_return(true, false)
-    @integration_session.should_receive(:follow_redirect!)
+    after do
+      Webrat.reset_for_test
+    end
 
-    rails_session = Webrat::RailsSession.new(@integration_session)
-    rails_session.get("url", "data", "headers")
+    it "should follow internal redirects" do
+      @integration_session.stub!(:get)
+      @integration_session.stub!(:host)
+      @integration_session.stub!(:status)
+
+      @integration_session.should_receive(:internal_redirect?).twice.and_return(true, false)
+      @integration_session.should_receive(:follow_redirect!)
+
+      rails_session = Webrat::RailsSession.new(@integration_session)
+      rails_session.get("url", "data", "headers")
+    end
+
+    it "should not follow external redirects" do
+      @integration_session.stub!(:get)
+      @integration_session.stub!(:host)
+      @integration_session.stub!(:status)
+
+      @integration_session.should_receive(:internal_redirect?).and_return(false)
+      @integration_session.should_not_receive(:follow_redirect!)
+
+      rails_session = Webrat::RailsSession.new(@integration_session)
+      rails_session.get("url", "data", "headers")
+    end
   end
 
-  it "should not follow external redirects" do
-    @integration_session.stub!(:get)
-    @integration_session.stub!(:host)
-    @integration_session.stub!(:status)
+  context "not following redirects" do
+    before do
+      Webrat.cache_config_for_test
+      Webrat.configuration.follow_redirects = false
+    end
 
-    @integration_session.should_receive(:internal_redirect?).and_return(false)
-    @integration_session.should_not_receive(:follow_redirect!)
+    after do
+      Webrat.reset_for_test
+    end
 
-    rails_session = Webrat::RailsSession.new(@integration_session)
-    rails_session.get("url", "data", "headers")
+    it "should not follow any redirects" do
+      @integration_session.stub!(:get)
+      @integration_session.stub!(:host)
+      @integration_session.stub!(:status)
+
+      @integration_session.should_not_receive(:follow_redirect!)
+
+      rails_session = Webrat::RailsSession.new(@integration_session)
+      rails_session.get("url", "data", "headers")
+    end
   end
 
   context "the URL is a full path" do
