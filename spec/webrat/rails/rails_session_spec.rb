@@ -63,10 +63,22 @@ describe Webrat::RailsSession do
       @integration_session.stub!(:status)
 
       @integration_session.should_receive(:internal_redirect?).twice.and_return(true, false)
-      @integration_session.should_receive(:follow_redirect!)
+      @integration_session.should_receive(:follow_redirect_with_headers)
 
       rails_session = Webrat::RailsSession.new(@integration_session)
       rails_session.get("url", "data", "headers")
+    end
+
+    it "should use headers when following redirects" do
+      @integration_session.stub!(:post)
+      @integration_session.stub!(:host)
+      @integration_session.stub!(:status)
+
+      @integration_session.should_receive(:internal_redirect?).twice.and_return(true, false)
+      @integration_session.should_receive(:follow_redirect_with_headers).with("headers")
+
+      rails_session = Webrat::RailsSession.new(@integration_session)
+      rails_session.post("url", "data", "headers")
     end
 
     it "should not follow external redirects" do
@@ -75,7 +87,7 @@ describe Webrat::RailsSession do
       @integration_session.stub!(:status)
 
       @integration_session.should_receive(:internal_redirect?).and_return(false)
-      @integration_session.should_not_receive(:follow_redirect!)
+      @integration_session.should_not_receive(:follow_redirect_with_headers)
 
       rails_session = Webrat::RailsSession.new(@integration_session)
       rails_session.get("url", "data", "headers")
@@ -97,7 +109,7 @@ describe Webrat::RailsSession do
       @integration_session.stub!(:host)
       @integration_session.stub!(:status)
 
-      @integration_session.should_not_receive(:follow_redirect!)
+      @integration_session.should_not_receive(:follow_redirect_with_headers)
 
       rails_session = Webrat::RailsSession.new(@integration_session)
       rails_session.get("url", "data", "headers")
@@ -162,6 +174,43 @@ describe Webrat::RailsSession do
         @integration_session.response.should_receive(:redirect_url_match?).and_return(true)
         @integration_session.internal_redirect?.should == true
       end
+    end
+
+    describe "follow_redirect!" do
+
+      before do
+        @integration_session.stub!(:headers).and_return({ 'location' => ["/"]})
+        @integration_session.stub!(:redirect?).and_return true
+        @integration_session.stub!(:get)
+      end
+
+      it "should raise an exception if response wasn't a redirect" do
+        @integration_session.stub!(:redirect?).and_return false
+        lambda { @integration_session.follow_redirect_with_headers }.should raise_error
+      end
+
+      it "should set the HTTP referer header" do
+        @integration_session.stub!(:current_url).and_return "http://source.url/"
+
+        headers = {}
+
+        @integration_session.follow_redirect_with_headers(headers)
+        headers["HTTP_REFERER"].should == "http://source.url/"
+      end
+
+      it "should GET the first location header" do
+        @integration_session.stub!("headers").and_return({ 'location' => ['/target'] })
+
+        @integration_session.should_receive(:get).with("/target", {}, hash_including("headers" => "foo"))
+
+        @integration_session.follow_redirect_with_headers({"headers" => "foo"})
+      end
+
+      it "should return the status" do
+        @integration_session.stub!(:status).and_return "202"
+        @integration_session.follow_redirect_with_headers.should == "202"
+      end
+    
     end
   end
 end

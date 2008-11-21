@@ -43,7 +43,7 @@ module Webrat
     def do_request(http_method, url, data, headers) #:nodoc:
       update_protocol(url)
       @integration_session.send(http_method, remove_protocol(url), data, headers)
-      @integration_session.follow_redirect! while Webrat.configuration.follow_redirects && @integration_session.internal_redirect?
+      @integration_session.follow_redirect_with_headers(headers) while Webrat.configuration.follow_redirects && @integration_session.internal_redirect?
       @integration_session.status
     end
 
@@ -87,6 +87,15 @@ module ActionController
           super
         end
       end
+
+      def follow_redirect_with_headers(h = {})
+        raise "not a redirect! #{@status} #{@status_message}" unless redirect?
+        h['HTTP_REFERER'] = current_url if current_url
+
+        get(interpret_uri(headers["location"].first), {}, h)
+        status
+      end
+
 
     protected
 
