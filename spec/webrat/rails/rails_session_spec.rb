@@ -150,67 +150,68 @@ describe Webrat::RailsSession do
   it "should provide a doc_root" do
     Webrat::RailsSession.new(@integration_session).should respond_to(:doc_root)
   end
+end
 
-  describe ActionController::Integration::Session do
-    before :each do
-      @integration_session = ActionController::Integration::Session.new
-      @integration_session.stub!(:response => mock("response"))
+
+describe ActionController::Integration::Session do
+  before :each do
+    @integration_session = ActionController::Integration::Session.new
+    @integration_session.stub!(:response => mock("response"))
+  end
+
+  describe "internal_redirect?" do
+    it "should return false if the response is not a redirect" do
+      @integration_session.should_receive(:redirect?).and_return(false)
+      @integration_session.internal_redirect?.should == false
     end
 
-    describe "internal_redirect?" do
-      it "should return false if the response is not a redirect" do
-        @integration_session.should_receive(:redirect?).and_return(false)
-        @integration_session.internal_redirect?.should == false
-      end
-
-      it "should return false if the response was a redirect but the response location does not match the request host" do
-        @integration_session.should_receive(:redirect?).and_return(true)
-        @integration_session.response.should_receive(:redirect_url_match?).and_return(false)
-        @integration_session.internal_redirect?.should == false
-      end
-
-      it "should return true if the response is a redirect and the response location matches the request host" do
-        @integration_session.should_receive(:redirect?).and_return(true)
-        @integration_session.response.should_receive(:redirect_url_match?).and_return(true)
-        @integration_session.internal_redirect?.should == true
-      end
+    it "should return false if the response was a redirect but the response location does not match the request host" do
+      @integration_session.should_receive(:redirect?).and_return(true)
+      @integration_session.response.should_receive(:redirect_url_match?).and_return(false)
+      @integration_session.internal_redirect?.should == false
     end
 
-    describe "follow_redirect!" do
-
-      before do
-        @integration_session.stub!(:headers).and_return({ 'location' => ["/"]})
-        @integration_session.stub!(:redirect?).and_return true
-        @integration_session.stub!(:get)
-      end
-
-      it "should raise an exception if response wasn't a redirect" do
-        @integration_session.stub!(:redirect?).and_return false
-        lambda { @integration_session.follow_redirect_with_headers }.should raise_error
-      end
-
-      it "should set the HTTP referer header" do
-        @integration_session.stub!(:current_url).and_return "http://source.url/"
-
-        headers = {}
-
-        @integration_session.follow_redirect_with_headers(headers)
-        headers["HTTP_REFERER"].should == "http://source.url/"
-      end
-
-      it "should GET the first location header" do
-        @integration_session.stub!("headers").and_return({ 'location' => ['/target'] })
-
-        @integration_session.should_receive(:get).with("/target", {}, hash_including("headers" => "foo"))
-
-        @integration_session.follow_redirect_with_headers({"headers" => "foo"})
-      end
-
-      it "should return the status" do
-        @integration_session.stub!(:status).and_return "202"
-        @integration_session.follow_redirect_with_headers.should == "202"
-      end
-    
+    it "should return true if the response is a redirect and the response location matches the request host" do
+      @integration_session.should_receive(:redirect?).and_return(true)
+      @integration_session.response.should_receive(:redirect_url_match?).and_return(true)
+      @integration_session.internal_redirect?.should == true
     end
+  end
+
+  describe "follow_redirect!" do
+
+    before do
+      @integration_session.stub!(:headers).and_return({ 'location' => ["/"]})
+      @integration_session.stub!(:redirect?).and_return true
+      @integration_session.stub!(:get)
+    end
+
+    it "should raise an exception if response wasn't a redirect" do
+      @integration_session.stub!(:redirect?).and_return false
+      lambda { @integration_session.follow_redirect_with_headers }.should raise_error
+    end
+
+    it "should set the HTTP referer header" do
+      @integration_session.stub!(:current_url).and_return "http://source.url/"
+
+      headers = {}
+
+      @integration_session.follow_redirect_with_headers(headers)
+      headers["HTTP_REFERER"].should == "http://source.url/"
+    end
+
+    it "should GET the first location header" do
+      @integration_session.stub!("headers").and_return({ 'location' => ['/target'] })
+
+      @integration_session.should_receive(:get).with("/target", {}, hash_including("headers" => "foo"))
+
+      @integration_session.follow_redirect_with_headers({"headers" => "foo"})
+    end
+
+    it "should return the status" do
+      @integration_session.stub!(:status).and_return "202"
+      @integration_session.follow_redirect_with_headers.should == "202"
+    end
+  
   end
 end
